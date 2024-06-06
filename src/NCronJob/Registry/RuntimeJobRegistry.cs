@@ -1,3 +1,6 @@
+using Cronos;
+using System;
+
 namespace NCronJob;
 
 /// <summary>
@@ -58,6 +61,12 @@ public interface IRuntimeJobRegistry
     /// <param name="timeZoneInfo">The associated time zone. If the job has none, or couldn't be found this will be <c>null</c>.</param>
     /// <returns>Returns <c>true</c> if the job was found, otherwise <c>false</c>.</returns>
     bool TryGetSchedule(string jobName, out string? cronExpression, out TimeZoneInfo? timeZoneInfo);
+
+    /// <summary>
+    /// Get jobs in the registry.
+    /// </summary>
+    /// <returns></returns>
+    IEnumerable<(string JobName, string? CronExpression, TimeZoneInfo? TimeZone)> GetJobs();
 }
 
 /// <inheritdoc />
@@ -162,5 +171,11 @@ internal sealed class RuntimeJobRegistry : IRuntimeJobRegistry
         timeZoneInfo = job.TimeZone;
 
         return true;
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<(string JobName, string? CronExpression, TimeZoneInfo? TimeZone)> GetJobs()
+    {
+        return jobRegistry.GetAllCronJobs().Select(x => (x.CustomName ?? x.JobName, x.CronExpression?.ToString(), x.TimeZone));
     }
 }
