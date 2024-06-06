@@ -19,7 +19,7 @@ public sealed class DependencyBuilder<TPrincipalJob>
     /// <param name="parameter">Adds a parameter that is passed down as the <see cref="JobExecutionContext"/> to the job.</param>
     /// <param name="jobName">Adds a name to the job. This allows to remove the job later on.</param>
     /// <remarks>
-    /// <typeparamref name="TJob"/> will automatically be registered in the container. There is no need to call <see cref="NCronJobOptionBuilder.AddJob{TJob}"/> for the dependent job.
+    /// <typeparamref name="TJob"/> will automatically be registered in the container. There is no need to call <see cref="NCronJobOptionBuilder.AddJob{T}(Action{JobOptionBuilder}?)"/> for the dependent job.
     /// </remarks>
     public DependencyBuilder<TPrincipalJob> RunJob<TJob>(object? parameter = null, string? jobName = null)
         where TJob : IJob
