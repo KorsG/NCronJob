@@ -67,38 +67,6 @@ public class NCronJobOptionBuilder : IJobStage
     }
 
     /// <summary>
-    /// Adds a job to the service collection that gets executed based on the given cron expression.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <returns></returns>
-    public IStartupStage<T> AddJob<T>(JobOptionBuilder builder)
-        where T : class, IJob
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        ValidateConcurrencySetting(typeof(T));
-
-        Services.TryAddScoped<T>();
-
-        var jobOptions = builder.GetJobOptions();
-
-        foreach (var option in jobOptions)
-        {
-            var cron = option.CronExpression is not null
-                ? GetCronExpression(option.CronExpression, option.EnableSecondPrecision)
-                : null;
-            var entry = new JobDefinition(typeof(T), option.Parameter, cron, option.TimeZoneInfo)
-            {
-                IsStartupJob = option.IsStartupJob,
-                CustomName = option.Name,
-            };
-            jobs.Add(entry);
-        }
-
-        return new StartupStage<T>(Services, Settings, jobs, builder);
-    }
-
-    /// <summary>
     /// Adds a job using an asynchronous anonymous delegate to the service collection that gets executed based on the given cron expression.
     /// </summary>
     /// <param name="jobDelegate">The delegate that represents the job to be executed.</param>

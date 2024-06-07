@@ -16,7 +16,7 @@ internal static class ScheduledJobsConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(scheduleConfig);
-        
+
         // Add Jobs.
         builder.AddJob<PrintHelloWorldJob>(scheduleConfig, "PrintHelloWorld_1", p =>
             p.WithParameter(1));
@@ -43,28 +43,25 @@ internal static class ScheduledJobsConfigurationExtensions
     {
         var jobConfig = scheduleConfig.GetConfigForJob(jobName);
 
-        var localBuilder = new JobOptionBuilder();
+        IStartupStage<T> startupStageBuilder;
 
         var onlyOnStartup = jobConfig.IsStartupJob;
-
-        if (!onlyOnStartup)
-        {
-            // NOTE: Startup jobs does not allow non-nullable cron expressions, but adding null expression via WithCronExpression throws an exception, so cant configure e.g. parameters.
-            var paramBuilder = localBuilder
-                .WithCronExpression(jobConfig.Cron, timeZoneInfo: jobConfig.TimeZone)
-                .WithName(jobName);
-
-            parameters?.Invoke(paramBuilder);
-        }
-
-        var startupStageBuilder = builder.AddJob<T>(localBuilder);
-
         if (onlyOnStartup)
         {
+            // NOTE: Startup jobs does not allow non-nullable cron expressions, but adding null expression via WithCronExpression throws an exception, so cant configure e.g. parameters.
+            startupStageBuilder = builder.AddJob<T>();
             return startupStageBuilder.RunAtStartup();
         }
+        else
+        {
+            startupStageBuilder = builder.AddJob<T>(x =>
+            {
+                var paramBuilder = x.WithCronExpression(jobConfig.Cron, timeZoneInfo: jobConfig.TimeZone).WithName(jobName);
+                parameters?.Invoke(paramBuilder);
+            });
 
-        return startupStageBuilder;
+            return startupStageBuilder;
+        }
     }
 
     internal static (bool Enabled, string Cron, TimeZoneInfo TimeZone, bool IsStartupJob) GetConfigForJob(this ScheduledJobsConfig config, string jobName)

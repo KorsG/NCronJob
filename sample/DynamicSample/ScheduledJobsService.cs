@@ -48,24 +48,18 @@ public class ScheduledJobsService : BackgroundService
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Configure RuntimeJobs based on config
-        foreach (var registeredJob in runtimeJobRegistry.GetJobs())
+        foreach (var registeredJob in runtimeJobRegistry.GetAllRecurringJobs().Where(x => x.JobName is not null))
         {
-            var jobConfig = config.GetConfigForJob(registeredJob.JobName);
+            var jobConfig = config.GetConfigForJob(registeredJob.JobName!);
 
-            logger.LogInformation("Updating schedule of Job '{JobName}' to {Cron}", registeredJob.JobName, jobConfig.Cron);
-            runtimeJobRegistry.UpdateSchedule(registeredJob.JobName, jobConfig.Cron, jobConfig.TimeZone);
-
-            // NOTE: The below does not work, because the registeredJob.CronExpression is a parsed Cron from the library Cronos, and is therefore not comparable to the input Cron.
-            /*
             // Update runtime if config has changed.
             if (registeredJob.CronExpression != jobConfig.Cron || registeredJob.TimeZone != jobConfig.TimeZone)
             {
                 logger.LogInformation("Job '{JobName}' changed Scheduling config. Old/New Cron: {OldCron}/{NewCon}",
                     registeredJob.JobName, registeredJob.CronExpression, jobConfig.Cron);
 
-                runtimeJobRegistry.UpdateSchedule(registeredJob.JobName, jobConfig.Cron, jobConfig.TimeZone);
+                runtimeJobRegistry.UpdateSchedule(registeredJob.JobName!, jobConfig.Cron, jobConfig.TimeZone);
             }
-            */
         }
 
         return Task.CompletedTask;
