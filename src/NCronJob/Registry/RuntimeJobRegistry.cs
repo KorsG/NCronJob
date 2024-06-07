@@ -1,5 +1,4 @@
 using Cronos;
-using System;
 
 namespace NCronJob;
 
@@ -63,11 +62,40 @@ public interface IRuntimeJobRegistry
     bool TryGetSchedule(string jobName, out string? cronExpression, out TimeZoneInfo? timeZoneInfo);
 
     /// <summary>
-    /// Get jobs in the registry.
+    /// Returns a list of all recurring jobs.
     /// </summary>
     /// <returns></returns>
-    IEnumerable<(string JobName, string? CronExpression, TimeZoneInfo? TimeZone)> GetJobs();
+    IReadOnlyCollection<RecurringJobSchedule> GetAllRecurringJobs();
+
+    /// <summary>
+    /// This will enable a job that was previously disabled.
+    /// </summary>
+    /// <param name="jobName">The unique job name that identifies this job.</param>
+    /// <remarks>
+    /// If the job is already enabled, this method does nothing.
+    /// If the job is not found, an exception is thrown.
+    /// </remarks>
+    void EnableJob(string jobName);
+
+    /// <summary>
+    /// This will disable a job that was previously enabled.
+    /// </summary>
+    /// <param name="jobName">The unique job name that identifies this job.</param>
+    /// <remarks>
+    /// If the job is already disabled, this method does nothing.
+    /// If the job is not found, an exception is thrown.
+    /// </remarks>
+    void DisableJob(string jobName);
 }
+
+/// <summary>
+/// Represents a recurring job schedule.
+/// </summary>
+/// <param name="JobType">The associated job type or <c>null</c> if the job is an anonymous job.</param>
+/// <param name="JobName">The job name given by the user.</param>
+/// <param name="CronExpression">The cron expression that defines when the job should be executed.</param>
+/// <param name="TimeZone">The timezone that is used to evaluate the cron expression.</param>
+public sealed record RecurringJobSchedule(Type? JobType, string? JobName, string CronExpression, TimeZoneInfo TimeZone);
 
 /// <inheritdoc />
 internal sealed class RuntimeJobRegistry : IRuntimeJobRegistry
@@ -167,15 +195,46 @@ internal sealed class RuntimeJobRegistry : IRuntimeJobRegistry
             return false;
         }
 
-        cronExpression = job.CronExpression?.ToString();
+        cronExpression = job.CronExpressionString;
         timeZoneInfo = job.TimeZone;
 
         return true;
     }
 
     /// <inheritdoc />
-    public IEnumerable<(string JobName, string? CronExpression, TimeZoneInfo? TimeZone)> GetJobs()
+    public IReadOnlyCollection<RecurringJobSchedule> GetAllRecurringJobs()
+        => jobRegistry
+            .GetAllCronJobs()
+            .Select(s => new RecurringJobSchedule(
+                s.Type == typeof(DynamicJobFactory) ? null : s.Type,
+                s.CustomName,
+                s.CronExpressionString!,
+                s.TimeZone!))
+            .ToArray();
+
+    /// <inheritdoc />
+    public void EnableJob(string jobName)
     {
-        return jobRegistry.GetAllCronJobs().Select(x => (x.CustomName ?? x.JobName, x.CronExpression?.ToString(), x.TimeZone));
+        var job = jobRegistry.FindJobDefinition(jobName)
+                  ?? throw new InvalidOperationException($"Job with name '{jobName}' not found.");
+
+        if (job.CronExpression is not null)
+        {
+            job.CronExpression = CronExpression.Parse(job.CronExpressionString);
+            jobQueue.ReevaluateQueue();
+        }
+    }
+
+    /// <inheritdoc />
+    public void DisableJob(string jobName)
+    {
+        var job = jobRegistry.FindJobDefinition(jobName)
+                  ?? throw new InvalidOperationException($"Job with name '{jobName}' not found.");
+
+        if (job.CronExpression is not null)
+        {
+            job.CronExpression = CronExpression.Parse("* * 31 2 *");
+            jobQueue.ReevaluateQueue();
+        }
     }
 }
